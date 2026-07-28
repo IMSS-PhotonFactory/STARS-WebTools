@@ -28,7 +28,7 @@ internal static class Program
             configFilename = args[0] + ".json";
         }
 
-        var configfile = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), configFilename);
+        var configfile = Path.Combine(AppContext.BaseDirectory, configFilename);
         if (File.Exists(configfile))
         {
             try
