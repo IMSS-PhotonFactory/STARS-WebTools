@@ -14,7 +14,7 @@ namespace STARSHttpClient
         StarsInterface stars;
         ConcurrentDictionary<string, TaskCompletionSource<string?>> waitHandleDict = new ConcurrentDictionary<string, TaskCompletionSource<string?>>();
 
-        string starsNode = "webapi";
+        string starsNode;
 
         public bool IsReady
         {
@@ -28,9 +28,15 @@ namespace STARSHttpClient
             }
         }
 
-        public StarsDispacher()
+        public StarsDispacher(StarsConfig config)
         {
-            stars = new StarsInterface(starsNode, "127.0.0.1", $"{starsNode}.key", 6057) { KeyWord = "stars" };
+            starsNode = config.StarsNode;
+
+            stars = new StarsInterface(config.StarsNode, config.StarsHost, config.StarsKey, config.StarsPort);
+            if (config.UseStarsKeyword) {
+                stars.KeyWord = config.StarsKeyword;
+            }
+            
             stars.DataReceived += Stars_DataReceived;
 
             try
@@ -52,16 +58,24 @@ namespace STARSHttpClient
             }
         }
 
-        public async Task<string?> InvokeAsync(string targetName, string commandName, IReadOnlyDictionary<string, string> parameters, int timeout = 5000)
+        public async Task<string?> InvokeAsync(string targetName, string commandName, string? parameterValue, IReadOnlyDictionary<string, string> parameters, int timeout = 5000)
         {
-            string sender = $"{starsNode}.{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.{Guid.NewGuid():N}";
+            string id = Guid.NewGuid().ToString("N").Substring(0, 6);
+            string sender = $"{starsNode}.{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.{id}";
             string key = $"{sender}|@{commandName}";
             var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
             waitHandleDict[key] = tcs;
 
             try
             {
-                stars.Send(sender, targetName, commandName);
+                if(parameterValue is not null && parameterValue.Length > 0) 
+                {
+                    stars.Send(sender, targetName, $"{commandName} {parameterValue}");
+                }
+                else
+                {
+                    stars.Send(sender, targetName, commandName);
+                }
 
                 var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
                 if (completed != tcs.Task)
