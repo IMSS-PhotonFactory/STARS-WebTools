@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace STARSHttpClient
 {
      internal class StarsDispacher
-    {
+     {
         StarsInterface stars;
         ConcurrentDictionary<string, TaskCompletionSource<string?>> waitHandleDict = new ConcurrentDictionary<string, TaskCompletionSource<string?>>();
 
@@ -77,6 +77,23 @@ namespace STARSHttpClient
             }
         }
 
-    }
+     }
+
+    public class CommandNotFoundException(string message) : Exception(message);
+
+    public class ParameterBindingException(string message) : Exception(message);
+
+    //    public async Task<object?> InvokeAsync(string targetName, string commandName, IReadOnlyDictionary<string, string> parameters)
+    //    {
+    //        if (!_targets.TryGetValue(targetName, out var commands))
+    //        {
+    //            throw new CommandNotFoundException($"対象名 '{targetName}' が見つかりません。");
+    //        }
+
+    //        if (!commands.TryGetValue(commandName, out var entry))
+    //        {
+    //            throw new CommandNotFoundException($"コマンド名 '{commandName}' が対象 '{targetName}' に見つかりません。");
+    //        }
+
 
 }
