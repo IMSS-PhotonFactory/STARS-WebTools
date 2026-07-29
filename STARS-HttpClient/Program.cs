@@ -96,6 +96,22 @@ internal static class Program
     {
         using var stream = client.GetStream();
 
+        var remoteEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
+        if (!AccessAllowList.IsAllowed(remoteEndPoint?.Address))
+        {
+            var forbiddenResponse = new SimpleHttpResponse();
+            WriteJson(forbiddenResponse, HttpStatusCode.Forbidden, new { error = "Forbidden" });
+            try
+            {
+                await HttpResponseWriter.WriteAsync(stream, forbiddenResponse, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex);
+            }
+            return;
+        }
+
         SimpleHttpRequest? request;
         try
         {

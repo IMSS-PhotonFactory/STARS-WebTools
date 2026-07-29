@@ -83,7 +83,7 @@ namespace STARSHttpClient
                     return $"Er: Timeout {timeout} ms";
                 }
 
-                return await tcs.Task;
+                return tcs.Task.Result;
             }
             finally
             {
