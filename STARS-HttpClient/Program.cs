@@ -13,6 +13,7 @@ internal static class Program
     private const string CommandKey = "command";
     private const string ParameterKey = "param";
     private const string TimeoutKey = "timeout";
+    private const string PasswordKey = "password";
 
     private static StarsDispacher starsdispacher;
 
@@ -88,11 +89,11 @@ internal static class Program
                 break;
             }
 
-            _ = HandleConnectionAsync(client, cts.Token);
+            _ = HandleConnectionAsync(client, cts.Token, config);
         }
     }
 
-    private static async Task HandleConnectionAsync(TcpClient client, CancellationToken ct)
+    private static async Task HandleConnectionAsync(TcpClient client, CancellationToken ct, ApplicationConfig config)
     {
         using var stream = client.GetStream();
 
@@ -133,15 +134,15 @@ internal static class Program
 
             if (segments.Length == 1 && string.Equals(segments[0], "StarsApi", StringComparison.OrdinalIgnoreCase))
             {
-                await RouteExecute(request, response, ExecuteMode.Free);
+                await RouteExecute(request, response, ExecuteMode.Free, config.UseApiPassword, config.ApiPassword);
             }
             else if (segments.Length == 2 && string.Equals(segments[0], "StarsApi", StringComparison.OrdinalIgnoreCase) && string.Equals(segments[1], "GetValue", StringComparison.OrdinalIgnoreCase))
             {
-                await RouteExecute(request, response, ExecuteMode.GetValue);
+                await RouteExecute(request, response, ExecuteMode.GetValue, config.UseApiPassword, config.ApiPassword);
             }
             else if (segments.Length == 2 && string.Equals(segments[0], "StarsApi", StringComparison.OrdinalIgnoreCase) && string.Equals(segments[1], "SetValue", StringComparison.OrdinalIgnoreCase))
             {
-                await RouteExecute(request, response, ExecuteMode.SetValue);
+                await RouteExecute(request, response, ExecuteMode.SetValue, config.UseApiPassword, config.ApiPassword);
             }
             else
             {
@@ -168,7 +169,7 @@ internal static class Program
         }
     }
 
-    private static async Task RouteExecute(SimpleHttpRequest request, SimpleHttpResponse response, ExecuteMode mode)
+    private static async Task RouteExecute(SimpleHttpRequest request, SimpleHttpResponse response, ExecuteMode mode, bool usePass = false, string? apiPassword = null)
     {
         if (request.HttpMethod is not ("GET" or "POST"))
         {
@@ -193,6 +194,18 @@ internal static class Program
                     ? prop.Value.GetString()!
                     : prop.Value.GetRawText();
             }
+        }
+
+        if (usePass && (!parameters.TryGetValue(PasswordKey, out var password) || password != apiPassword))
+        {
+            WriteJson(response, HttpStatusCode.Unauthorized, new
+            {
+                node = "",
+                command = "",
+                result = "Unauthorized.",
+                errorflag = true
+            });
+            return;
         }
 
         if (!parameters.TryGetValue(TargetKey, out var targetName) || string.IsNullOrWhiteSpace(targetName))
@@ -250,7 +263,7 @@ internal static class Program
         }
 
         var extraParams = parameters
-            .Where(kv => kv.Key != TargetKey && kv.Key != CommandKey && kv.Key != ParameterKey)
+            .Where(kv => kv.Key != TargetKey && kv.Key != CommandKey && kv.Key != ParameterKey && kv.Key != PasswordKey)
             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
         try
@@ -279,11 +292,11 @@ internal static class Program
         }
     }
 
-    private static T? ReadJson<T>(SimpleHttpRequest request)
-    {
-        if (!request.HasBody) return default;
-        return JsonSerializer.Deserialize<T>(request.BodyText, JsonOptions);
-    }
+    //private static T? ReadJson<T>(SimpleHttpRequest request)
+    //{
+    //    if (!request.HasBody) return default;
+    //    return JsonSerializer.Deserialize<T>(request.BodyText, JsonOptions);
+    //}
 
     private static void WriteJson(SimpleHttpResponse response, HttpStatusCode statusCode, object payload)
     {
@@ -298,6 +311,8 @@ public class ApplicationConfig
 {
     public StarsConfig StarsConf { get; set; } = new();
     public int HttpPort { get; set; } = 9901;
+    public bool UseApiPassword { get; set; } = false;
+    public string ApiPassword { get; set; } = "starsapi";
 }
 
 public class  StarsConfig

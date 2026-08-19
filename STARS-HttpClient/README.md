@@ -54,7 +54,9 @@ STARS-HttpClient.exe myconfig
 	"StarsKeyword": "stars",
 	"UseStarsKeyword": true
   },
-  "HttpPort": 9901
+  "HttpPort": 9901,
+  "UseApiPassword": false,
+  "ApiPassword": "starsapi"
 }
 ```
 
@@ -67,6 +69,8 @@ STARS-HttpClient.exe myconfig
 | `StarsConf.StarsKeyword` | STARS 接続時に使用するキーワード（`UseStarsKeyword` が `true` の場合のみ有効） |
 | `StarsConf.UseStarsKeyword` | キーワード認証を使用するかどうか |
 | `HttpPort` | このアプリケーションが待ち受ける HTTP ポート番号（既定: 9901） |
+| `UseApiPassword` | HTTP API 呼び出し時に `password` パラメーターによるアクセス制限を行うかどうか（既定: `false`） |
+| `ApiPassword` | `UseApiPassword` が `true` の場合に要求されるパスワード文字列（既定: `starsapi`） |
 
 起動時に STARS への接続が確立できない場合、以下のメッセージを表示してアプリケーションは終了します。
 
@@ -106,6 +110,30 @@ client.example.local
 リクエストは `GET`（クエリ文字列）または `POST`（JSON ボディ）に対応しています。両方を指定した場合は POST ボディの値が優先されます。
 
 レスポンスは常に JSON 形式（`Content-Type: application/json`）です。
+
+### パスワードによるアクセス制限
+
+`config.json` の `UseApiPassword` を `true` に設定すると、HTTP API の呼び出し時に `password` パラメーターによる認証が必須になります。
+
+- リクエストの `password` パラメーター（クエリ文字列または POST ボディ）に、`ApiPassword` で設定した値と一致する文字列を指定する必要があります。
+- `password` が指定されていない場合、または値が一致しない場合は `401 Unauthorized` が返され、STARS への処理は実行されません。
+- `UseApiPassword` が `false`（既定値）の場合、`password` パラメーターは無視され、認証は行われません。
+- `password` パラメーターは、その他の追加パラメーターと同様に応答内容には反映されません。
+
+**リクエスト例（GET）**
+```
+GET /StarsApi/GetValue?node=nct08&password=starsapi
+```
+
+**認証失敗時のレスポンス（401 Unauthorized）**
+```json
+{
+  "node": "",
+  "command": "",
+  "result": "Unauthorized.",
+  "errorflag": true
+}
+```
 
 ### 共通パラメーター
 
@@ -187,6 +215,7 @@ GET /StarsApi/SetValue?node=pm16c.ch0&param=-500
 
 | ステータスコード | 条件 |
 |---|---|
+| 401 Unauthorized | `UseApiPassword` が有効な場合に、`password` パラメーターが未指定または不一致の場合 |
 | 403 Forbidden | 接続元 IP アドレスが `allowlist.txt` に含まれていない場合 |
 | 404 Not Found | 存在しないパスへのリクエスト |
 | 405 Method Not Allowed | GET/POST 以外のメソッド |
